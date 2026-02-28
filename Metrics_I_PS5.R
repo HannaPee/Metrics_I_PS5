@@ -26,7 +26,7 @@ n_obs  <- 100
 
 for (i in 1:n_sims) {
   
-  x_i = rbern(n_obs, prob = 0.1) 
+  x_i = rbinom(n_obs, 1, 0.1)
   e_i = rnorm(n_obs, mean = 0, sd = sqrt(2)) 
   y_i = e_i 
   
@@ -148,7 +148,7 @@ ggsave(
   height   = 6
 )
 
-#Real values of variance of beta # 
+#Real values of variance of beta# 
 
 summary_beta1 <- betas_wide%>%
   summarise(
@@ -331,6 +331,21 @@ ggsave(
   height   = 6
 )
 
+## Calculate mean and standard errors ## 
+
+descript_t_stats <- df_t_stats_2%>%
+  group_by(Estimator)%>%
+  summarise(
+    mean = mean(t_stat, na.rm = TRUE), 
+    sd = sd(t_stat, na.rm = TRUE), 
+    rejection_rate = mean(abs(t_stat) > 1.984, na.rm = TRUE)
+  )
+
+kable(descript_t_stats,
+      format = "latex",
+      booktabs = TRUE,
+      digits = 3,
+      caption = "Descriptives t-statistics")
 
 
 ### e ###
@@ -456,11 +471,33 @@ run_simulation_analysis <- function(df, label){
     left_join(betas_wide, by = "sim") %>%      
     mutate(e_hat = y - (beta0 + beta1 * x))   
   
+  #Summary stats# 
+  
+  summary_beta1 <- betas_wide%>%
+    summarise(
+      mean_beta1 = mean(beta1), 
+      var_beta1 = var(beta1), 
+      sd_beta_1 = sd(beta1)
+    )
+  
+  print(kable(summary_beta1,
+        format = "latex",
+        booktabs = TRUE,
+        digits = 3,
+        caption = paste0("Population Variance of Estimators_",label)))
+  
   ## c ## 
   
   # Solve for the variances # 
   
-  res_by_sim <- df %>%
+  #Filter observations with few obs for X = 1# 
+  df_filtered <- df %>%
+    group_by(sim) %>%
+    filter(sum(x == 1) >= 3) %>%
+    ungroup()
+  
+  res_by_sim <- df_filtered %>%
+    filter(n_obs > 2)%>%
     group_by(sim) %>%
     nest() %>%
     mutate(
@@ -527,11 +564,11 @@ run_simulation_analysis <- function(df, label){
   
   # Plot as overleaf# 
   
-  kable(table_clean,
+  print(kable(table_clean,
         format = "latex",
         booktabs = TRUE,
         digits = 3,
-        caption = paste0("Comparison of Variance Estimators - Case", label))
+        caption = paste0("Comparison of Variance Estimators - Case_", label)))
   
   ### e ### 
   
@@ -582,13 +619,29 @@ run_simulation_analysis <- function(df, label){
     width    = 8,
     height   = 6
   )
+  
+  ## Calculate mean and standard errors ## 
+  
+  descript_t_stats <- df_t_stats%>%
+    group_by(Estimator)%>%
+    summarise(
+      mean = mean(t_stat, na.rm = TRUE), 
+      sd = sd(t_stat, na.rm = TRUE), 
+      rejection_rate = mean(abs(t_stat) > 1.984, na.rm = TRUE)
+    )
+  
+  print(kable(descript_t_stats,
+        format = "latex",
+        booktabs = TRUE,
+        digits = 3,
+        caption = paste0("Descriptives t-statistics_", label)))
+  
 }
 
 results_e1 <- run_simulation_analysis(df_e_1, "e1")
 results_e2 <- run_simulation_analysis(df_e_2, "e2")
 
 
-# Estimating simple regression #
 
 
 
